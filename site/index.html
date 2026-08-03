@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#fbfaf7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Claude 档案">
+    <title>Claude 档案</title>
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand-row">
+          <div class="brand-mark" aria-hidden="true">C</div>
+          <div>
+            <div class="brand-name">Claude</div>
+            <div class="brand-subtitle">本地档案</div>
+          </div>
+        </div>
+
+        <label class="search-box" for="searchInput">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z"></path></svg>
+          <input id="searchInput" type="search" autocomplete="off" placeholder="搜索所有对话">
+          <kbd>⌘ K</kbd>
+        </label>
+
+        <div class="list-header">
+          <span id="listHeading">最近对话</span>
+          <span id="listCount"></span>
+        </div>
+        <nav class="conversation-list" id="conversationList" aria-label="会话列表">
+          <div class="sidebar-loading">正在读取会话…</div>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button class="library-button" id="libraryButton" type="button">
+            <span aria-hidden="true">◫</span>
+            项目与 Memory
+          </button>
+          <div class="archive-stats" id="archiveStats">正在核对档案…</div>
+        </div>
+      </aside>
+
+      <button class="sidebar-scrim" id="sidebarScrim" type="button" aria-label="关闭侧栏"></button>
+
+      <main class="main-panel">
+        <header class="chat-header">
+          <button class="icon-button mobile-menu" id="menuButton" type="button" aria-label="打开侧栏">☰</button>
+          <div class="chat-heading">
+            <h1 id="conversationTitle">Claude 本地档案</h1>
+            <div id="conversationMeta">请选择左侧会话开始阅读</div>
+          </div>
+          <button class="header-action hidden" id="lockArchiveButton" type="button">锁定</button>
+          <button class="header-action" id="rawConversationButton" type="button" disabled>原始 JSON</button>
+        </header>
+
+        <section class="chat-scroll" id="chatScroll">
+          <div class="welcome" id="welcome">
+            <div class="welcome-orb" aria-hidden="true">C</div>
+            <h2>已恢复导出包中现存的 Claude 对话</h2>
+            <p>从左侧选择会话，或搜索聊天正文、Thinking、工具输出与附件提取文字。</p>
+            <div class="welcome-note">阅读器会明确标出原始导出缺少的答复，不会伪造不存在的内容。</div>
+          </div>
+
+          <div class="conversation-view hidden" id="conversationView">
+            <div class="messages" id="messages"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog class="modal" id="rawDialog">
+      <div class="modal-header">
+        <div>
+          <div class="modal-eyebrow">完整原始记录</div>
+          <h2 id="rawDialogTitle">原始 JSON</h2>
+        </div>
+        <button class="icon-button" data-close-dialog="rawDialog" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="modal-actions">
+        <button class="secondary-button" id="copyRawButton" type="button">复制 JSON</button>
+      </div>
+      <pre class="raw-json" id="rawJsonContent">正在读取…</pre>
+    </dialog>
+
+    <dialog class="modal library-modal" id="libraryDialog">
+      <div class="modal-header">
+        <div>
+          <div class="modal-eyebrow">导出包中的资料</div>
+          <h2>项目与 Memory</h2>
+        </div>
+        <button class="icon-button" data-close-dialog="libraryDialog" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="library-content" id="libraryContent">正在读取…</div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="cloud-gate hidden" id="cloudGate" role="dialog" aria-modal="true" aria-labelledby="cloudGateTitle">
+      <form class="cloud-gate-card" id="cloudGateForm">
+        <div class="welcome-orb" aria-hidden="true">C</div>
+        <h2 id="cloudGateTitle">打开你的私人 Claude 档案</h2>
+        <p>输入恢复密钥。密钥只在这台设备中使用，不会发送给 Firebase 或任何第三方。</p>
+        <label for="archiveKeyInput">恢复密钥</label>
+        <input id="archiveKeyInput" type="password" autocomplete="current-password" spellcheck="false" required>
+        <label class="remember-key"><input id="rememberArchiveKey" type="checkbox" checked> 在这台设备上记住密钥</label>
+        <button class="cloud-unlock-button" type="submit">解锁档案</button>
+        <div class="cloud-gate-error" id="cloudGateError" role="alert"></div>
+      </form>
+    </div>
+    <script src="./cloud-config.js"></script>
+    <script src="./cloud-data-source.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

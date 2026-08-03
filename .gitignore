@@ -1,0 +1,11 @@
+# Never publish local secrets or plaintext recovery data.
+recovery-key.txt
+**/recovery-key.txt
+/archive/
+**/archive/*.json
+*.sqlite
+*.sqlite-*
+*.rar
+*.zip
+build-report.json
+verification-report.json
