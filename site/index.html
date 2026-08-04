@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Claude 档案">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.anthropic.com; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https:; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'">
     <title>Claude 档案</title>
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="stylesheet" href="./styles.css">
@@ -136,7 +136,10 @@
           <button class="icon-button" data-close-dialog="apiSettingsDialog" type="button" aria-label="关闭">×</button>
         </div>
         <div class="api-settings-content">
-          <div class="api-security-note">API 密钥不会写入 GitHub，也不会交给档案服务器。浏览器只会把它发送到 <code>api.anthropic.com</code>。</div>
+          <div class="api-security-note">API 密钥不会写入 GitHub，也不会交给档案服务器。浏览器只会把它发送到你在下方填写的 API 接口地址。</div>
+          <label for="anthropicApiBaseUrl">API 接口地址</label>
+          <input id="anthropicApiBaseUrl" type="url" inputmode="url" autocomplete="url" spellcheck="false" value="https://api.anthropic.com/v1" placeholder="https://api.anthropic.com/v1">
+          <p class="api-model-help">填写兼容 Anthropic Messages API 的完整基础地址；常见地址以 <code>/v1</code> 结尾。请只填写你信任的 HTTPS 服务地址。</p>
           <label for="anthropicApiKey">Anthropic API Key</label>
           <input id="anthropicApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
           <label class="remember-key"><input id="rememberAnthropicKey" type="checkbox"> 在这台设备上记住 API Key</label>

@@ -1,11 +1,12 @@
 "use strict";
 
 (() => {
-  const API_ORIGIN = "https://api.anthropic.com";
+  const DEFAULT_API_BASE_URL = "https://api.anthropic.com/v1";
   const API_VERSION = "2023-06-01";
   const SESSION_KEY = "claudeApiKeySession";
   const REMEMBERED_KEY = "claudeApiKeyRemembered";
   const MODEL_KEY = "claudeApiModel";
+  const BASE_URL_KEY = "claudeApiBaseUrl";
 
   function init(options) {
     const elements = {
@@ -14,6 +15,7 @@
       settingsDialog: document.getElementById("apiSettingsDialog"),
       settingsForm: document.getElementById("apiSettingsForm"),
       apiKeyInput: document.getElementById("anthropicApiKey"),
+      apiBaseUrlInput: document.getElementById("anthropicApiBaseUrl"),
       rememberKey: document.getElementById("rememberAnthropicKey"),
       modelSelect: document.getElementById("anthropicModel"),
       composerModelSelect: document.getElementById("apiComposerModel"),
@@ -30,6 +32,7 @@
     };
 
     let apiKey = sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(REMEMBERED_KEY) || "";
+    let apiBaseUrl = localStorage.getItem(BASE_URL_KEY) || DEFAULT_API_BASE_URL;
     let currentModel = localStorage.getItem(MODEL_KEY) || "";
     let availableModels = [];
     let chatMessages = [];
@@ -43,6 +46,29 @@
         "anthropic-version": API_VERSION,
         "anthropic-dangerous-direct-browser-access": "true",
       };
+    }
+
+    function normalizeApiBaseUrl(value) {
+      const supplied = String(value || "").trim() || DEFAULT_API_BASE_URL;
+      let parsed;
+      try {
+        parsed = new URL(supplied);
+      } catch {
+        throw new Error("API 接口地址不是有效 URL");
+      }
+      if (parsed.protocol !== "https:") {
+        throw new Error("API 接口地址必须使用 HTTPS");
+      }
+      if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+        throw new Error("API 接口地址不能包含账号、查询参数或 # 片段");
+      }
+      let pathname = parsed.pathname.replace(/\/+$/, "");
+      if (!pathname) pathname = "/v1";
+      return `${parsed.origin}${pathname}`;
+    }
+
+    function apiUrl(path, baseUrl = apiBaseUrl) {
+      return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
     }
 
     async function apiError(response) {
@@ -65,8 +91,8 @@
       );
     }
 
-    async function fetchModels(key) {
-      const response = await fetch(`${API_ORIGIN}/v1/models?limit=100`, {
+    async function fetchModels(key, baseUrl = apiBaseUrl) {
+      const response = await fetch(`${apiUrl("models?limit=100", baseUrl)}`, {
         headers: requestHeaders(key),
       });
       if (!response.ok) throw new Error(await apiError(response));
@@ -99,12 +125,14 @@
       updateStatus();
     }
 
-    function storeApiKey(value, remember) {
+    function storeApiSettings(value, baseUrl, remember) {
       sessionStorage.removeItem(SESSION_KEY);
       localStorage.removeItem(REMEMBERED_KEY);
       if (remember) localStorage.setItem(REMEMBERED_KEY, value);
       else sessionStorage.setItem(SESSION_KEY, value);
       apiKey = value;
+      apiBaseUrl = baseUrl;
+      localStorage.setItem(BASE_URL_KEY, apiBaseUrl);
     }
 
     function clearApiKey() {
@@ -120,6 +148,7 @@
       elements.composerModelSelect.innerHTML = '<option value="">连接 API 后选择模型</option>';
       elements.apiKeyInput.value = "";
       elements.apiKeyInput.placeholder = "sk-ant-…";
+      elements.apiBaseUrlInput.value = apiBaseUrl;
       updateStatus();
     }
 
@@ -141,7 +170,7 @@
       if (availableModels.length && currentModel) return true;
       updateStatus("正在读取 Claude 模型…");
       try {
-        const models = await fetchModels(apiKey);
+        const models = await fetchModels(apiKey, apiBaseUrl);
         renderModelOptions(models, currentModel);
         return true;
       } catch (error) {
@@ -156,6 +185,7 @@
       elements.settingsError.textContent = "";
       elements.rememberKey.checked = Boolean(localStorage.getItem(REMEMBERED_KEY));
       elements.apiKeyInput.value = "";
+      elements.apiBaseUrlInput.value = apiBaseUrl;
       elements.apiKeyInput.placeholder = apiKey ? "已连接；留空可继续使用当前 Key" : "sk-ant-…";
       if (availableModels.length) renderModelOptions(availableModels, currentModel);
       elements.settingsDialog.showModal();
@@ -212,8 +242,8 @@
       }
     }
 
-    async function streamMessage(messages, onDelta, signal, model) {
-      const response = await fetch(`${API_ORIGIN}/v1/messages`, {
+    async function streamMessage(messages, onDelta, signal, model, baseUrl) {
+      const response = await fetch(apiUrl("messages", baseUrl), {
         method: "POST",
         headers: requestHeaders(apiKey),
         body: JSON.stringify({
@@ -256,6 +286,7 @@
 
       chatMessages.push({ role: "user", content });
       const requestModel = currentModel;
+      const requestBaseUrl = apiBaseUrl;
       const assistant = { role: "assistant", content: "", model: requestModel };
       chatMessages.push(assistant);
       elements.input.value = "";
@@ -282,6 +313,7 @@
           },
           requestController.signal,
           requestModel,
+          requestBaseUrl,
         );
         updateStatus(
           usage.input_tokens || usage.output_tokens
@@ -327,8 +359,9 @@
       }
       elements.settingsError.textContent = "正在连接 Anthropic API…";
       try {
-        const models = await fetchModels(candidate);
-        storeApiKey(candidate, elements.rememberKey.checked);
+        const candidateBaseUrl = normalizeApiBaseUrl(elements.apiBaseUrlInput.value);
+        const models = await fetchModels(candidate, candidateBaseUrl);
+        storeApiSettings(candidate, candidateBaseUrl, elements.rememberKey.checked);
         renderModelOptions(models, currentModel);
         elements.apiKeyInput.value = "";
         elements.settingsError.textContent = "";
@@ -362,7 +395,10 @@
       elements.settingsError.textContent = "正在刷新 Claude 模型列表…";
       elements.refreshModels.disabled = true;
       try {
-        renderModelOptions(await fetchModels(apiKey), currentModel);
+        const candidateBaseUrl = normalizeApiBaseUrl(elements.apiBaseUrlInput.value);
+        renderModelOptions(await fetchModels(apiKey, candidateBaseUrl), currentModel);
+        apiBaseUrl = candidateBaseUrl;
+        localStorage.setItem(BASE_URL_KEY, apiBaseUrl);
         elements.settingsError.textContent = "模型列表已更新";
       } catch (error) {
         elements.settingsError.textContent = error.message;

@@ -28,6 +28,6 @@
 
 ## Claude API 新聊天
 
-页面左侧的“新聊天”可以直接连接用户自己的 Anthropic API Key。只有新聊天内容会发送到 `api.anthropic.com`，恢复档案不会作为上下文上传。模型列表由 Anthropic API 动态返回，不在站点中固定旧模型；输入框旁可在每次提问前重新选型。
+页面左侧的“新聊天”可以直接连接用户自己的 Anthropic API Key。默认接口地址是 `https://api.anthropic.com/v1`，也可填写兼容 Anthropic Messages API 的 HTTPS 基础地址。只有新聊天内容会发送到所填写的接口地址，恢复档案不会作为上下文上传；模型列表动态返回，输入框旁可在每次提问前重新选型。
 
-API Key 永远不应提交到本仓库。默认只保存在当前浏览器会话；只有用户主动勾选“在这台设备上记住 API Key”时才会写入该设备的浏览器本地存储。公共站点已通过 Content Security Policy 将联网范围限制为本站和 Anthropic API。
+API Key 永远不应提交到本仓库。默认只保存在当前浏览器会话；只有用户主动勾选“在这台设备上记住 API Key”时才会写入该设备的浏览器本地存储。由于支持用户自选 HTTPS 接口地址，请只填写可信服务商的域名。
