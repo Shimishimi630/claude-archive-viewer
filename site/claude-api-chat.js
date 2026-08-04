@@ -10,6 +10,7 @@
   const AUTH_MODE_KEY = "claudeApiAuthMode";
   const MEMORY_KEY = "claudeApiPortableMemory";
   const MAX_MEMORY_BYTES = 200 * 1024;
+  const HISTORY_KEY = "claudeApiChatHistoryV1";
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
   const MAX_IMAGE_COUNT = 10;
   const MAX_TOTAL_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -53,6 +54,8 @@
     let apiAuthMode = localStorage.getItem(AUTH_MODE_KEY) || "anthropic";
     let portableMemory = localStorage.getItem(MEMORY_KEY) || "";
     let chatMessages = [];
+    let chatId = "";
+    let chatHistory = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
     let pendingImages = [];
     let requestController = null;
     let renderFrame = 0;
@@ -76,6 +79,14 @@
       return portableMemory
         ? `以下是用户主动导入的长期协作记忆。把它作为背景，不要声称你能访问用户设备、旧聊天或任何目录；如与用户当前说法冲突，以当前说法为准。\n\n${portableMemory}`
         : "";
+    }
+
+    function saveChat() {
+      if (!chatId) return;
+      const firstUserMessage = chatMessages.find((item) => item.role === "user" && item.content)?.content || "新聊天";
+      const record = { id: chatId, title: firstUserMessage.slice(0, 60), updatedAt: Date.now(), messages: chatMessages.map(({ role, content, model, error }) => ({ role, content, model, error })) };
+      chatHistory = [record, ...chatHistory.filter((item) => item.id !== chatId)].slice(0, 50);
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(chatHistory)); } catch { updateStatus("聊天记录空间不足"); }
     }
 
     function normalizeApiBaseUrl(value) {
@@ -386,6 +397,7 @@
       }
       elements.messages.innerHTML = chatMessages.map(renderMessage).join("");
       elements.messages.scrollIntoView({ block: "end" });
+      saveChat();
     }
 
     function scheduleRender() {
@@ -521,6 +533,11 @@
 
     async function open() {
       options.enterMode();
+      if (!chatId) {
+        const latest = chatHistory[0];
+        chatId = latest?.id || crypto.randomUUID();
+        chatMessages = latest?.messages || [];
+      }
       document.body.classList.remove("sidebar-open");
       renderChat();
       if (!apiKey) showSettings();
@@ -673,7 +690,7 @@
     elements.stopButton.addEventListener("click", () => requestController?.abort());
     updateStatus();
 
-    return Object.freeze({ open, showSettings });
+    return Object.freeze({ open, showSettings, createNewChat: () => { chatId = crypto.randomUUID(); chatMessages = []; saveChat(); renderChat(); } });
   }
 
   window.ClaudeApiChat = Object.freeze({ init });
