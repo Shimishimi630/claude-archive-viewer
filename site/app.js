@@ -38,6 +38,49 @@ const state = {
   apiChatMode: false,
 };
 
+const READING_POSITIONS_KEY = "claudeArchiveReadingPositionsV1";
+const READING_POSITIONS_LIMIT = 300;
+let readingPositionTimer = 0;
+
+function getReadingPositions() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(READING_POSITIONS_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function savedReadingPosition(uuid) {
+  const position = getReadingPositions()[uuid];
+  return Number.isFinite(position?.top) && position.top >= 0 ? position : null;
+}
+
+function rememberActiveReadingPosition() {
+  if (state.apiChatMode || !state.activeConversationUuid) return;
+  const positions = getReadingPositions();
+  positions[state.activeConversationUuid] = {
+    top: Math.round(elements.chatScroll.scrollTop),
+    updatedAt: Date.now(),
+  };
+  const entries = Object.entries(positions).sort(([, left], [, right]) => (right.updatedAt || 0) - (left.updatedAt || 0));
+  try {
+    localStorage.setItem(READING_POSITIONS_KEY, JSON.stringify(Object.fromEntries(entries.slice(0, READING_POSITIONS_LIMIT))));
+  } catch {
+    // Reading position is a convenience only; the archive remains usable if storage is unavailable.
+  }
+}
+
+function restoreReadingPosition(uuid) {
+  const position = savedReadingPosition(uuid);
+  const top = position?.top || 0;
+  const apply = () => {
+    if (state.activeConversationUuid === uuid && !state.apiChatMode) elements.chatScroll.scrollTop = top;
+  };
+  apply();
+  window.requestAnimationFrame(() => window.requestAnimationFrame(apply));
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -542,6 +585,7 @@ function setConversationLoading() {
 }
 
 function enterApiChatMode() {
+  rememberActiveReadingPosition();
   state.apiChatMode = true;
   state.activeConversationUuid = null;
   state.activeConversation = null;
@@ -570,6 +614,7 @@ function leaveApiChatMode() {
 
 async function loadConversation(uuid, options = {}) {
   const { focus = "", updateHistory = true } = options;
+  rememberActiveReadingPosition();
   leaveApiChatMode();
   state.activeConversationUuid = uuid;
   document.querySelectorAll(".conversation-item").forEach((item) => {
@@ -608,7 +653,7 @@ async function loadConversation(uuid, options = {}) {
         }
       });
     } else {
-      elements.chatScroll.scrollTop = 0;
+      restoreReadingPosition(uuid);
     }
   } catch (error) {
     elements.messages.innerHTML = `<div class="error-card">读取失败：${escapeHtml(error.message)}</div>`;
@@ -696,6 +741,13 @@ elements.searchInput.addEventListener("keydown", (event) => {
     loadConversations("");
   }
 });
+
+elements.chatScroll.addEventListener("scroll", () => {
+  window.clearTimeout(readingPositionTimer);
+  readingPositionTimer = window.setTimeout(rememberActiveReadingPosition, 180);
+});
+
+window.addEventListener("pagehide", rememberActiveReadingPosition);
 
 document.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
