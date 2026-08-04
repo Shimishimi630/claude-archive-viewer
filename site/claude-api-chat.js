@@ -34,6 +34,7 @@
       memoryFile: document.getElementById("apiMemoryFile"),
       memoryStatus: document.getElementById("apiMemoryStatus"),
       clearMemory: document.getElementById("clearApiMemory"),
+      chatList: document.getElementById("apiChatList"),
       messages: document.getElementById("apiChatMessages"),
       empty: document.getElementById("apiChatEmpty"),
       form: document.getElementById("apiChatForm"),
@@ -89,7 +90,9 @@
       const record = { id: chatId, title: firstUserMessage.slice(0, 60), updatedAt: Date.now(), messages: chatMessages.map(({ role, content, model, error }) => ({ role, content, model, error })) };
       chatHistory = [record, ...chatHistory.filter((item) => item.id !== chatId)].slice(0, 50);
       try { localStorage.setItem(HISTORY_KEY, JSON.stringify(chatHistory)); } catch { updateStatus("聊天记录空间不足"); }
+      renderHistory();
     }
+    function renderHistory() { elements.chatList.innerHTML = chatHistory.map((item) => `<button class="conversation-item ${item.id === chatId ? "active" : ""}" type="button" data-api-chat="${options.escapeHtml(item.id)}"><strong>${options.escapeHtml(item.title)}</strong><small>${new Date(item.updatedAt).toLocaleDateString()}</small></button>`).join("") || '<div class="sidebar-empty">还没有新对话。</div>'; }
 
     function normalizeApiBaseUrl(value) {
       const supplied = String(value || "").trim() || DEFAULT_API_BASE_URL;
@@ -547,7 +550,8 @@
       elements.input.focus();
     }
 
-    elements.newChatButton.addEventListener("click", open);
+    elements.newChatButton.addEventListener("click", async () => { chatId = crypto.randomUUID(); chatMessages = []; saveChat(); await open(); });
+    elements.chatList.addEventListener("click", (event) => { const button = event.target.closest("[data-api-chat]"); if (!button) return; const record = chatHistory.find((item) => item.id === button.dataset.apiChat); if (!record) return; chatId = record.id; chatMessages = record.messages || []; options.enterMode(); renderChat(); });
     elements.settingsButton.addEventListener("click", showSettings);
     elements.settingsForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -692,7 +696,7 @@
     elements.stopButton.addEventListener("click", () => requestController?.abort());
     updateStatus();
 
-    return Object.freeze({ open, showSettings, createNewChat: () => { chatId = crypto.randomUUID(); chatMessages = []; saveChat(); renderChat(); } });
+    return Object.freeze({ open, showSettings, refreshHistory: renderHistory, createNewChat: () => { chatId = crypto.randomUUID(); chatMessages = []; saveChat(); renderChat(); } });
   }
 
   window.ClaudeApiChat = Object.freeze({ init });

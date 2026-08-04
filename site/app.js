@@ -25,6 +25,7 @@ const elements = {
   toast: document.getElementById("toast"),
   apiChatView: document.getElementById("apiChatView"),
   leaveApiChatButton: document.getElementById("leaveApiChatButton"),
+  archiveTab: document.getElementById("archiveTab"), apiChatsTab: document.getElementById("apiChatsTab"), apiChatList: document.getElementById("apiChatList"),
   apiSettingsButton: document.getElementById("apiSettingsButton"),
 };
 
@@ -598,7 +599,7 @@ function enterApiChatMode() {
   elements.rawConversationButton.disabled = true;
   elements.apiSettingsButton.classList.remove("hidden");
   elements.leaveApiChatButton.classList.remove("hidden");
-  document.body.classList.add("api-chat-mode");
+  elements.archiveTab.classList.remove("active"); elements.apiChatsTab.classList.add("active"); elements.conversationList.classList.add("hidden"); elements.apiChatList.classList.remove("hidden");
   document.querySelectorAll(".conversation-item").forEach((item) => item.classList.remove("active"));
 }
 
@@ -609,7 +610,6 @@ function leaveApiChatMode() {
   elements.rawConversationButton.classList.remove("hidden");
   elements.apiSettingsButton.classList.add("hidden");
   elements.leaveApiChatButton.classList.add("hidden");
-  document.body.classList.remove("api-chat-mode");
 }
 
 async function loadConversation(uuid, options = {}) {
@@ -787,6 +787,8 @@ elements.copyRawButton.addEventListener("click", () => {
 });
 
 elements.libraryButton.addEventListener("click", openLibrary);
+elements.archiveTab.addEventListener("click", () => { elements.archiveTab.classList.add("active"); elements.apiChatsTab.classList.remove("active"); elements.conversationList.classList.remove("hidden"); elements.apiChatList.classList.add("hidden"); });
+elements.apiChatsTab.addEventListener("click", () => { elements.apiChatsTab.classList.add("active"); elements.archiveTab.classList.remove("active"); elements.conversationList.classList.add("hidden"); elements.apiChatList.classList.remove("hidden"); window.ClaudeApiChat?.refreshHistory(); });
 elements.leaveApiChatButton.addEventListener("click", () => {
   leaveApiChatMode();
   elements.welcome.classList.remove("hidden");
