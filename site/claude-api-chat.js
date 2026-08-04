@@ -11,6 +11,7 @@
   const MEMORY_KEY = "claudeApiPortableMemory";
   const MAX_MEMORY_BYTES = 200 * 1024;
   const HISTORY_KEY = "claudeApiChatHistoryV1";
+  const MAX_MESSAGES_PER_CHAT = 3000;
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
   const MAX_IMAGE_COUNT = 10;
   const MAX_TOTAL_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -83,6 +84,7 @@
 
     function saveChat() {
       if (!chatId) return;
+      if (chatMessages.length > MAX_MESSAGES_PER_CHAT) chatMessages = chatMessages.slice(-MAX_MESSAGES_PER_CHAT);
       const firstUserMessage = chatMessages.find((item) => item.role === "user" && item.content)?.content || "新聊天";
       const record = { id: chatId, title: firstUserMessage.slice(0, 60), updatedAt: Date.now(), messages: chatMessages.map(({ role, content, model, error }) => ({ role, content, model, error })) };
       chatHistory = [record, ...chatHistory.filter((item) => item.id !== chatId)].slice(0, 50);
