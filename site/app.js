@@ -744,11 +744,7 @@ document.querySelectorAll("[data-close-dialog]").forEach((button) => {
   button.addEventListener("click", () => document.getElementById(button.dataset.closeDialog).close());
 });
 
-document.querySelectorAll("dialog").forEach((dialog) => {
-  dialog.addEventListener("click", (event) => {
-    if (event.target === dialog) dialog.close();
-  });
-});
+// Dialogs remain open when their backdrop is clicked.
 
 window.addEventListener("popstate", () => {
   const uuid = decodeURIComponent(location.hash.replace(/^#/, ""));

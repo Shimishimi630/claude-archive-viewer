@@ -298,6 +298,14 @@ mark {
   line-height: 1.45;
 }
 
+.app-version {
+  padding: 5px 8px 0;
+  color: var(--faint);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
 .main-panel {
   min-width: 0;
   min-height: 0;

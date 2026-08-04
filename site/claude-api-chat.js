@@ -7,6 +7,7 @@
   const REMEMBERED_KEY = "claudeApiKeyRemembered";
   const MODEL_KEY = "claudeApiModel";
   const BASE_URL_KEY = "claudeApiBaseUrl";
+  const AUTH_MODE_KEY = "claudeApiAuthMode";
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
   const MAX_IMAGE_COUNT = 10;
   const MAX_TOTAL_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -42,15 +43,16 @@
     let apiBaseUrl = localStorage.getItem(BASE_URL_KEY) || DEFAULT_API_BASE_URL;
     let currentModel = localStorage.getItem(MODEL_KEY) || "";
     let availableModels = [];
+    let apiAuthMode = localStorage.getItem(AUTH_MODE_KEY) || "anthropic";
     let chatMessages = [];
     let pendingImages = [];
     let requestController = null;
     let renderFrame = 0;
 
-    function requestHeaders(key) {
+    function requestHeaders(key, authMode = apiAuthMode) {
       return {
         "content-type": "application/json",
-        "x-api-key": key,
+        ...(authMode === "bearer" ? { authorization: `Bearer ${key}` } : { "x-api-key": key }),
         "anthropic-version": API_VERSION,
         "anthropic-dangerous-direct-browser-access": "true",
       };
@@ -228,16 +230,27 @@
     }
 
     async function fetchModels(key, baseUrl = apiBaseUrl) {
-      const response = await fetch(`${apiUrl("models?limit=100", baseUrl)}`, {
-        headers: requestHeaders(key),
-      });
-      if (!response.ok) throw new Error(await apiError(response));
-      const payload = await response.json();
-      const models = Array.isArray(payload.data)
-        ? payload.data.filter((model) => model && typeof model.id === "string")
-        : [];
-      if (!models.length) throw new Error("Anthropic API 没有返回可用的 Claude 模型");
-      return models;
+      const modes = [...new Set([apiAuthMode, "anthropic", "bearer"])];
+      let lastError;
+      for (const authMode of modes) {
+        const response = await fetch(`${apiUrl("models?limit=100", baseUrl)}`, {
+          headers: requestHeaders(key, authMode),
+        });
+        if (!response.ok) {
+          lastError = new Error(await apiError(response));
+          if (response.status === 401 || response.status === 403) continue;
+          throw lastError;
+        }
+        const payload = await response.json();
+        const models = Array.isArray(payload.data)
+          ? payload.data.filter((model) => model && typeof model.id === "string")
+          : [];
+        if (!models.length) throw new Error("API 没有返回可用的 Claude 模型");
+        apiAuthMode = authMode;
+        localStorage.setItem(AUTH_MODE_KEY, apiAuthMode);
+        return models;
+      }
+      throw new Error(`${lastError?.message || "API 鉴权失败"}；请确认中转站 Key 是否有效，或该中转站是否提供 Anthropic Messages API。`);
     }
 
     function renderModelOptions(models, selected) {
@@ -278,6 +291,8 @@
       currentModel = "";
       availableModels = [];
       localStorage.removeItem(MODEL_KEY);
+      localStorage.removeItem(AUTH_MODE_KEY);
+      apiAuthMode = "anthropic";
       elements.modelSelect.disabled = true;
       elements.modelSelect.innerHTML = '<option value="">连接后读取可用模型</option>';
       elements.composerModelSelect.disabled = true;
