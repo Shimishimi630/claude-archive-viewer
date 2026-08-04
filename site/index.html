@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Claude 档案">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https:; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https:; script-src 'self' https://www.gstatic.com; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob: https:; frame-src https://*.firebaseapp.com https://accounts.google.com; manifest-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'">
     <title>Claude 档案</title>
     <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="stylesheet" href="./styles.css?rev=20260804-images">
+    <link rel="stylesheet" href="./styles.css?rev=20260804-cloud-sync">
   </head>
   <body>
     <div class="app-shell">
@@ -25,13 +25,13 @@
         </div>
         <div class="archive-tabs" role="tablist"><button id="archiveTab" class="active" type="button">历史档案</button><button id="apiChatsTab" type="button">对话</button></div>
 
-        <label class="search-box" for="searchInput">
+        <label class="search-box" id="archiveSearchBox" for="searchInput">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z"></path></svg>
           <input id="searchInput" type="search" autocomplete="off" placeholder="搜索所有对话">
           <kbd>⌘ K</kbd>
         </label>
 
-        <div class="list-header">
+        <div class="list-header" id="archiveListHeader">
           <span id="listHeading">最近对话</span>
           <span id="listCount"></span>
         </div>
@@ -41,6 +41,10 @@
         <nav class="conversation-list hidden" id="apiChatList" aria-label="API 对话列表"></nav>
 
         <div class="sidebar-footer">
+          <div class="cloud-sync-panel hidden" id="cloudSyncPanel">
+            <button class="secondary-button cloud-sync-button" id="cloudSyncButton" type="button">使用 Google 登录同步</button>
+            <div class="cloud-sync-status" id="cloudSyncStatus">未登录 · 对话仅保存在这台设备</div>
+          </div>
           <button class="new-chat-button" id="newChatButton" type="button">
             <span aria-hidden="true">＋</span>
             新聊天
@@ -50,7 +54,7 @@
             项目与 Memory
           </button>
           <div class="archive-stats" id="archiveStats">正在核对档案…</div>
-          <div class="app-version" title="页面构建版本">版本 2026.08.04.06</div>
+          <div class="app-version" title="页面构建版本">版本 2026.08.04.07</div>
         </div>
       </aside>
 
@@ -185,7 +189,8 @@
     </div>
     <script src="./cloud-config.js"></script>
     <script src="./cloud-data-source.js"></script>
-    <script src="./claude-api-chat.js?rev=20260804-api-relay"></script>
-    <script src="./app.js?rev=20260804-reading-position"></script>
+    <script src="./claude-api-chat.js?rev=20260804-cloud-sync"></script>
+    <script src="./app.js?rev=20260804-cloud-sync"></script>
+    <script type="module" src="./firebase-sync.js?rev=20260804-cloud-sync"></script>
   </body>
 </html>

@@ -26,6 +26,7 @@ const elements = {
   apiChatView: document.getElementById("apiChatView"),
   leaveApiChatButton: document.getElementById("leaveApiChatButton"),
   archiveTab: document.getElementById("archiveTab"), apiChatsTab: document.getElementById("apiChatsTab"), apiChatList: document.getElementById("apiChatList"),
+  archiveSearchBox: document.getElementById("archiveSearchBox"), archiveListHeader: document.getElementById("archiveListHeader"), cloudSyncPanel: document.getElementById("cloudSyncPanel"),
   apiSettingsButton: document.getElementById("apiSettingsButton"),
 };
 
@@ -599,7 +600,7 @@ function enterApiChatMode() {
   elements.rawConversationButton.disabled = true;
   elements.apiSettingsButton.classList.remove("hidden");
   elements.leaveApiChatButton.classList.remove("hidden");
-  elements.archiveTab.classList.remove("active"); elements.apiChatsTab.classList.add("active"); elements.conversationList.classList.add("hidden"); elements.apiChatList.classList.remove("hidden");
+  elements.archiveTab.classList.remove("active"); elements.apiChatsTab.classList.add("active"); elements.conversationList.classList.add("hidden"); elements.apiChatList.classList.remove("hidden"); elements.archiveSearchBox.classList.add("hidden"); elements.archiveListHeader.classList.add("hidden"); elements.cloudSyncPanel.classList.remove("hidden");
   document.querySelectorAll(".conversation-item").forEach((item) => item.classList.remove("active"));
 }
 
@@ -787,10 +788,11 @@ elements.copyRawButton.addEventListener("click", () => {
 });
 
 elements.libraryButton.addEventListener("click", openLibrary);
-elements.archiveTab.addEventListener("click", () => { elements.archiveTab.classList.add("active"); elements.apiChatsTab.classList.remove("active"); elements.conversationList.classList.remove("hidden"); elements.apiChatList.classList.add("hidden"); });
-elements.apiChatsTab.addEventListener("click", () => { elements.apiChatsTab.classList.add("active"); elements.archiveTab.classList.remove("active"); elements.conversationList.classList.add("hidden"); elements.apiChatList.classList.remove("hidden"); window.ClaudeApiChat?.refreshHistory(); });
+elements.archiveTab.addEventListener("click", () => { elements.archiveTab.classList.add("active"); elements.apiChatsTab.classList.remove("active"); elements.conversationList.classList.remove("hidden"); elements.apiChatList.classList.add("hidden"); elements.archiveSearchBox.classList.remove("hidden"); elements.archiveListHeader.classList.remove("hidden"); elements.cloudSyncPanel.classList.add("hidden"); });
+elements.apiChatsTab.addEventListener("click", () => apiChat?.open());
 elements.leaveApiChatButton.addEventListener("click", () => {
   leaveApiChatMode();
+  elements.archiveTab.click();
   elements.welcome.classList.remove("hidden");
   elements.conversationTitle.textContent = "Claude 本地档案";
   elements.conversationMeta.textContent = "请选择左侧会话开始阅读";
@@ -803,6 +805,10 @@ const apiChat = window.ClaudeApiChat?.init({
   escapeHtml,
   renderMarkdown,
   showToast,
+  setTitle: (title, count) => {
+    elements.conversationTitle.textContent = title || "新聊天";
+    elements.conversationMeta.textContent = `Claude API · ${count || 0} 条消息 · 与恢复档案隔离`;
+  },
 });
 
 document.querySelectorAll("[data-close-dialog]").forEach((button) => {

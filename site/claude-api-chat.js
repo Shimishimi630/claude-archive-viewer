@@ -57,7 +57,37 @@
     let portableMemory = localStorage.getItem(MEMORY_KEY) || "";
     let chatMessages = [];
     let chatId = "";
+    let chatTitle = "新聊天";
+    let chatCreatedAt = 0;
+    let titleGenerated = false;
     let chatHistory = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+    window.addEventListener("api-sync-load", (event) => {
+      const allCloudRecords = Array.isArray(event.detail) ? event.detail : [];
+      const tombstones = new Map(allCloudRecords.filter((record) => record.deleted).map((record) => [record.id, Number(record.updatedAt)]));
+      const cloudHistory = allCloudRecords.filter((record) => !record.deleted);
+      const cloudById = new Map(cloudHistory.map((record) => [record.id, record]));
+      const localById = new Map(chatHistory.map((record) => [record.id, record]));
+      const merged = new Map();
+      for (const record of [...cloudHistory, ...chatHistory]) {
+        if (Number(tombstones.get(record.id) || 0) >= Number(record.updatedAt || 0)) continue;
+        const previous = merged.get(record.id);
+        if (!previous || Number(record.updatedAt) > Number(previous.updatedAt)) merged.set(record.id, record);
+      }
+      chatHistory = [...merged.values()].sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt));
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(chatHistory));
+      const active = chatHistory.find((record) => record.id === chatId);
+      if (!requestController && active && Number(active.updatedAt) > Number(localById.get(chatId)?.updatedAt || 0)) openRecord(active, false);
+      if (!active && tombstones.has(chatId)) {
+        if (chatHistory[0]) openRecord(chatHistory[0], false);
+        else createChat();
+      }
+      renderHistory();
+      for (const record of chatHistory) {
+        if (!cloudById.has(record.id) || Number(record.updatedAt) > Number(cloudById.get(record.id)?.updatedAt || 0)) {
+          window.dispatchEvent(new CustomEvent("api-sync-save", { detail: record }));
+        }
+      }
+    });
     let pendingImages = [];
     let requestController = null;
     let renderFrame = 0;
@@ -83,16 +113,54 @@
         : "";
     }
 
+    function currentRecord() {
+      return {
+        id: chatId,
+        title: chatTitle,
+        titleGenerated,
+        createdAt: chatCreatedAt || Date.now(),
+        updatedAt: Date.now(),
+        messages: chatMessages.map(({ role, content, model, error }) => ({ role, content, model, error })),
+      };
+    }
+
     function saveChat() {
       if (!chatId) return;
       if (chatMessages.length > MAX_MESSAGES_PER_CHAT) chatMessages = chatMessages.slice(-MAX_MESSAGES_PER_CHAT);
       const firstUserMessage = chatMessages.find((item) => item.role === "user" && item.content)?.content || "新聊天";
-      const record = { id: chatId, title: firstUserMessage.slice(0, 60), updatedAt: Date.now(), messages: chatMessages.map(({ role, content, model, error }) => ({ role, content, model, error })) };
-      chatHistory = [record, ...chatHistory.filter((item) => item.id !== chatId)].slice(0, 50);
+      if (chatTitle === "新聊天" && firstUserMessage !== "新聊天") chatTitle = firstUserMessage.replace(/\s+/g, " ").slice(0, 60);
+      const record = currentRecord();
+      chatHistory = [record, ...chatHistory.filter((item) => item.id !== chatId)];
       try { localStorage.setItem(HISTORY_KEY, JSON.stringify(chatHistory)); } catch { updateStatus("聊天记录空间不足"); }
+      window.dispatchEvent(new CustomEvent("api-sync-save", { detail: record }));
+      options.setTitle?.(chatTitle, chatMessages.length);
       renderHistory();
     }
-    function renderHistory() { elements.chatList.innerHTML = chatHistory.map((item) => `<button class="conversation-item ${item.id === chatId ? "active" : ""}" type="button" data-api-chat="${options.escapeHtml(item.id)}"><strong>${options.escapeHtml(item.title)}</strong><small>${new Date(item.updatedAt).toLocaleDateString()}</small></button>`).join("") || '<div class="sidebar-empty">还没有新对话。</div>'; }
+
+    function openRecord(record, rerender = true) {
+      chatId = record.id;
+      chatTitle = record.title || "新聊天";
+      chatCreatedAt = Number(record.createdAt || record.updatedAt || Date.now());
+      titleGenerated = Boolean(record.titleGenerated);
+      chatMessages = Array.isArray(record.messages) ? record.messages : [];
+      options.setTitle?.(chatTitle, chatMessages.length);
+      if (rerender) renderChat(false);
+    }
+
+    function createChat() {
+      chatId = crypto.randomUUID();
+      chatTitle = "新聊天";
+      chatCreatedAt = Date.now();
+      titleGenerated = false;
+      chatMessages = [];
+      saveChat();
+      options.setTitle?.(chatTitle, 0);
+      renderChat(false);
+    }
+
+    function renderHistory() {
+      elements.chatList.innerHTML = chatHistory.map((item) => `<div class="api-history-row"><button class="conversation-item ${item.id === chatId ? "active" : ""}" type="button" data-api-chat="${options.escapeHtml(item.id)}"><strong>${options.escapeHtml(item.title || "新聊天")}</strong><small>${new Date(item.updatedAt).toLocaleString()}</small></button><button class="api-history-delete" type="button" data-delete-api-chat="${options.escapeHtml(item.id)}" aria-label="删除对话">×</button></div>`).join("") || '<div class="sidebar-empty">还没有新对话。</div>';
+    }
 
     function normalizeApiBaseUrl(value) {
       const supplied = String(value || "").trim() || DEFAULT_API_BASE_URL;
@@ -395,14 +463,14 @@
       return `<article class="api-message assistant" data-api-message="${index}"><div class="assistant-avatar" aria-hidden="true">C</div><div class="api-message-bubble"><div class="api-message-label">Claude · ${options.escapeHtml(modelLabel)}</div>${body}</div></article>`;
     }
 
-    function renderChat() {
+    function renderChat(shouldSave = true) {
       if (!chatMessages.length) {
         elements.messages.innerHTML = '<div class="api-chat-empty" id="apiChatEmpty"><div class="welcome-orb" aria-hidden="true">C</div><h2>与 Claude 开始新聊天</h2><p>只有这个新聊天中的内容会发送给 Anthropic API。恢复档案不会被读取或上传。</p></div>';
         return;
       }
       elements.messages.innerHTML = chatMessages.map(renderMessage).join("");
       elements.messages.scrollIntoView({ block: "end" });
-      saveChat();
+      if (shouldSave) saveChat();
     }
 
     function scheduleRender() {
@@ -470,6 +538,40 @@
       return usage;
     }
 
+    async function maybeGenerateTitle(model, baseUrl) {
+      if (titleGenerated || chatMessages.filter((item) => messageHasContent(item)).length < 2) return;
+      const excerpt = chatMessages
+        .filter((item) => messageHasContent(item))
+        .slice(0, 4)
+        .map((item) => `${item.role === "user" ? "用户" : "Claude"}：${item.content.slice(0, 800)}`)
+        .join("\n");
+      try {
+        const response = await fetch(apiUrl("messages", baseUrl), {
+          method: "POST",
+          headers: requestHeaders(apiKey),
+          body: JSON.stringify({
+            model,
+            max_tokens: 32,
+            stream: false,
+            system: "为这段对话生成一个简短中文标题。只输出标题，不加引号、冒号或解释；最多18个汉字。",
+            messages: [{ role: "user", content: excerpt }],
+          }),
+        });
+        if (!response.ok) return;
+        const payload = await response.json();
+        const title = Array.isArray(payload.content)
+          ? payload.content.filter((block) => block?.type === "text").map((block) => block.text).join("")
+          : "";
+        const cleaned = title.replace(/^[“”"'《》\s]+|[“”"'《》\s]+$/g, "").replace(/[\r\n]+/g, " ").slice(0, 36);
+        if (!cleaned) return;
+        chatTitle = cleaned;
+        titleGenerated = true;
+        saveChat();
+      } catch {
+        // The first user message remains a useful fallback title.
+      }
+    }
+
     async function sendMessage(text) {
       if (requestController) return;
       if (!(await ensureConnection())) return;
@@ -516,6 +618,7 @@
             ? `${requestModel} · ${usage.input_tokens} 输入 / ${usage.output_tokens} 输出 tokens`
             : requestModel,
         );
+        await maybeGenerateTitle(requestModel, requestBaseUrl);
       } catch (error) {
         if (error.name === "AbortError") {
           if (!assistant.content) chatMessages.pop();
@@ -540,18 +643,57 @@
       options.enterMode();
       if (!chatId) {
         const latest = chatHistory[0];
-        chatId = latest?.id || crypto.randomUUID();
-        chatMessages = latest?.messages || [];
+        if (latest) openRecord(latest, false);
+        else createChat();
       }
+      options.setTitle?.(chatTitle, chatMessages.length);
       document.body.classList.remove("sidebar-open");
-      renderChat();
+      renderChat(false);
       if (!apiKey) showSettings();
       else await ensureConnection();
       elements.input.focus();
     }
 
-    elements.newChatButton.addEventListener("click", async () => { chatId = crypto.randomUUID(); chatMessages = []; saveChat(); await open(); });
-    elements.chatList.addEventListener("click", (event) => { const button = event.target.closest("[data-api-chat]"); if (!button) return; const record = chatHistory.find((item) => item.id === button.dataset.apiChat); if (!record) return; chatId = record.id; chatMessages = record.messages || []; options.enterMode(); renderChat(); });
+    elements.newChatButton.addEventListener("click", async () => {
+      if (requestController) {
+        options.showToast("请先停止当前回复，再新建对话");
+        return;
+      }
+      createChat();
+      await open();
+    });
+    elements.chatList.addEventListener("click", (event) => {
+      const deleteButton = event.target.closest("[data-delete-api-chat]");
+      if (deleteButton) {
+        if (requestController) {
+          options.showToast("请先停止当前回复，再删除对话");
+          return;
+        }
+        const targetId = deleteButton.dataset.deleteApiChat;
+        const target = chatHistory.find((item) => item.id === targetId);
+        if (!target || !window.confirm(`删除对话“${target.title || "新聊天"}”？此操作会同步到其他设备。`)) return;
+        chatHistory = chatHistory.filter((item) => item.id !== targetId);
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(chatHistory));
+        window.dispatchEvent(new CustomEvent("api-sync-delete", { detail: targetId }));
+        if (chatId === targetId) {
+          const next = chatHistory[0];
+          if (next) openRecord(next);
+          else createChat();
+        }
+        renderHistory();
+        return;
+      }
+      const button = event.target.closest("[data-api-chat]");
+      if (!button) return;
+      const record = chatHistory.find((item) => item.id === button.dataset.apiChat);
+      if (!record) return;
+      if (requestController && record.id !== chatId) {
+        options.showToast("请先停止当前回复，再切换对话");
+        return;
+      }
+      options.enterMode();
+      openRecord(record);
+    });
     elements.settingsButton.addEventListener("click", showSettings);
     elements.settingsForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -696,7 +838,7 @@
     elements.stopButton.addEventListener("click", () => requestController?.abort());
     updateStatus();
 
-    return Object.freeze({ open, showSettings, refreshHistory: renderHistory, createNewChat: () => { chatId = crypto.randomUUID(); chatMessages = []; saveChat(); renderChat(); } });
+    return Object.freeze({ open, showSettings, refreshHistory: renderHistory, createNewChat: createChat });
   }
 
   window.ClaudeApiChat = Object.freeze({ init });

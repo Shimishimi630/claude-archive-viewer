@@ -252,6 +252,23 @@ mark {
   border-top: 1px solid var(--line);
   padding: 10px 12px 12px;
 }
+
+.cloud-sync-panel {
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.cloud-sync-button { width: 100%; }
+.cloud-sync-status { margin-top: 6px; color: var(--faint); font-size: 9px; line-height: 1.4; overflow-wrap: anywhere; }
+.cloud-sync-status.error { color: #b34835; }
+
+.api-history-row { position: relative; }
+.api-history-row .conversation-item { padding-right: 34px; }
+.api-history-delete { position: absolute; top: 10px; right: 7px; z-index: 2; width: 24px; height: 24px; border: 0; border-radius: 6px; color: var(--faint); background: transparent; cursor: pointer; }
+.api-history-delete:hover { color: #a33f2e; background: #fff1ec; }
 .archive-tabs { display:flex; gap:6px; padding:8px 12px 4px; }
 .archive-tabs button { border:0; background:transparent; color:var(--muted); padding:6px 8px; border-radius:7px; cursor:pointer; font-size:12px; }
 .archive-tabs button.active { background:var(--paper-deep); color:var(--ink); font-weight:700; }
