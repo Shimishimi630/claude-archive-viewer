@@ -7,5 +7,13 @@ recovery-key.txt
 *.sqlite-*
 *.rar
 *.zip
+MobileSync/
+**/MobileSync/
+*iPhone-Backup-Evidence*/
+Manifest.db
+Manifest.plist
+Info.plist
+Status.plist
+*.mobileconfig
 build-report.json
 verification-report.json
