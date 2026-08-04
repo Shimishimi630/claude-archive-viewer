@@ -59,8 +59,9 @@
           <button class="icon-button mobile-menu" id="menuButton" type="button" aria-label="打开侧栏">☰</button>
           <div class="chat-heading">
             <h1 id="conversationTitle">Claude 本地档案</h1>
-            <div id="conversationMeta">请选择左侧会话开始阅读</div>
+           <div id="conversationMeta">请选择左侧会话开始阅读</div>
           </div>
+          <button class="header-action hidden" id="leaveApiChatButton" type="button">返回档案</button>
           <button class="header-action hidden" id="apiSettingsButton" type="button">API 设置</button>
           <button class="header-action hidden" id="lockArchiveButton" type="button">锁定</button>
           <button class="header-action" id="rawConversationButton" type="button" disabled>原始 JSON</button>
@@ -154,6 +155,10 @@
           </select>
           <button class="secondary-button api-refresh-models" id="refreshAnthropicModels" type="button">刷新模型列表</button>
           <p class="api-model-help">模型列表直接从 Anthropic API 获取，不在网页代码中固定某个旧模型。</p>
+          <label for="apiMemoryFile">个人记忆（仅独立 API 聊天）</label>
+          <input id="apiMemoryFile" type="file" accept="application/json,text/markdown,.json,.md,.txt">
+          <p class="api-model-help" id="apiMemoryStatus">未导入个人记忆；不会读取左侧恢复档案。</p>
+          <button class="secondary-button" id="clearApiMemory" type="button">移除已导入记忆</button>
           <div class="api-settings-error" id="apiSettingsError" role="alert"></div>
         </div>
         <div class="api-settings-actions">

@@ -24,6 +24,7 @@ const elements = {
   sidebarScrim: document.getElementById("sidebarScrim"),
   toast: document.getElementById("toast"),
   apiChatView: document.getElementById("apiChatView"),
+  leaveApiChatButton: document.getElementById("leaveApiChatButton"),
   apiSettingsButton: document.getElementById("apiSettingsButton"),
 };
 
@@ -552,6 +553,8 @@ function enterApiChatMode() {
   elements.rawConversationButton.classList.add("hidden");
   elements.rawConversationButton.disabled = true;
   elements.apiSettingsButton.classList.remove("hidden");
+  elements.leaveApiChatButton.classList.remove("hidden");
+  document.body.classList.add("api-chat-mode");
   document.querySelectorAll(".conversation-item").forEach((item) => item.classList.remove("active"));
 }
 
@@ -561,6 +564,8 @@ function leaveApiChatMode() {
   elements.apiChatView.classList.add("hidden");
   elements.rawConversationButton.classList.remove("hidden");
   elements.apiSettingsButton.classList.add("hidden");
+  elements.leaveApiChatButton.classList.add("hidden");
+  document.body.classList.remove("api-chat-mode");
 }
 
 async function loadConversation(uuid, options = {}) {
@@ -730,6 +735,12 @@ elements.copyRawButton.addEventListener("click", () => {
 });
 
 elements.libraryButton.addEventListener("click", openLibrary);
+elements.leaveApiChatButton.addEventListener("click", () => {
+  leaveApiChatMode();
+  elements.welcome.classList.remove("hidden");
+  elements.conversationTitle.textContent = "Claude 本地档案";
+  elements.conversationMeta.textContent = "请选择左侧会话开始阅读";
+});
 elements.menuButton.addEventListener("click", () => document.body.classList.add("sidebar-open"));
 elements.sidebarScrim.addEventListener("click", () => document.body.classList.remove("sidebar-open"));
 
@@ -744,7 +755,9 @@ document.querySelectorAll("[data-close-dialog]").forEach((button) => {
   button.addEventListener("click", () => document.getElementById(button.dataset.closeDialog).close());
 });
 
-// Dialogs remain open when their backdrop is clicked.
+// Dialogs remain open when their backdrop is clicked. This is especially
+// important for the API settings form: a stray click while pasting a key must
+// not discard the form or make the connection error disappear.
 
 window.addEventListener("popstate", () => {
   const uuid = decodeURIComponent(location.hash.replace(/^#/, ""));

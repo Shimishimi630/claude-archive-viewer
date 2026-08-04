@@ -8,6 +8,8 @@
   const MODEL_KEY = "claudeApiModel";
   const BASE_URL_KEY = "claudeApiBaseUrl";
   const AUTH_MODE_KEY = "claudeApiAuthMode";
+  const MEMORY_KEY = "claudeApiPortableMemory";
+  const MAX_MEMORY_BYTES = 200 * 1024;
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
   const MAX_IMAGE_COUNT = 10;
   const MAX_TOTAL_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -27,6 +29,9 @@
       refreshModels: document.getElementById("refreshAnthropicModels"),
       settingsError: document.getElementById("apiSettingsError"),
       forgetKey: document.getElementById("forgetAnthropicKey"),
+      memoryFile: document.getElementById("apiMemoryFile"),
+      memoryStatus: document.getElementById("apiMemoryStatus"),
+      clearMemory: document.getElementById("clearApiMemory"),
       messages: document.getElementById("apiChatMessages"),
       empty: document.getElementById("apiChatEmpty"),
       form: document.getElementById("apiChatForm"),
@@ -43,7 +48,10 @@
     let apiBaseUrl = localStorage.getItem(BASE_URL_KEY) || DEFAULT_API_BASE_URL;
     let currentModel = localStorage.getItem(MODEL_KEY) || "";
     let availableModels = [];
+    // Anthropic accepts x-api-key, while many trusted relay services expose the
+    // Anthropic Messages endpoints but expect the OpenAI-style Bearer header.
     let apiAuthMode = localStorage.getItem(AUTH_MODE_KEY) || "anthropic";
+    let portableMemory = localStorage.getItem(MEMORY_KEY) || "";
     let chatMessages = [];
     let pendingImages = [];
     let requestController = null;
@@ -56,6 +64,18 @@
         "anthropic-version": API_VERSION,
         "anthropic-dangerous-direct-browser-access": "true",
       };
+    }
+
+    function updateMemoryStatus() {
+      elements.memoryStatus.textContent = portableMemory
+        ? `已导入个人记忆（${Math.ceil(new Blob([portableMemory]).size / 1024)} KB）；只会随独立 API 聊天发送，不读取恢复档案。`
+        : "未导入个人记忆；不会读取左侧恢复档案。";
+    }
+
+    function memorySystemPrompt() {
+      return portableMemory
+        ? `以下是用户主动导入的长期协作记忆。把它作为背景，不要声称你能访问用户设备、旧聊天或任何目录；如与用户当前说法冲突，以当前说法为准。\n\n${portableMemory}`
+        : "";
     }
 
     function normalizeApiBaseUrl(value) {
@@ -238,6 +258,8 @@
         });
         if (!response.ok) {
           lastError = new Error(await apiError(response));
+          // A relay often rejects the unsupported header with 401/403. Try the
+          // other standard style before reporting the connection as failed.
           if (response.status === 401 || response.status === 403) continue;
           throw lastError;
         }
@@ -402,6 +424,7 @@
           model,
           max_tokens: 4096,
           stream: true,
+          ...(memorySystemPrompt() ? { system: memorySystemPrompt() } : {}),
           messages,
         }),
         signal,
@@ -568,6 +591,32 @@
       clearApiKey();
       elements.settingsError.textContent = "这台设备上的 Claude API Key 已删除";
     });
+
+    elements.memoryFile.addEventListener("change", async () => {
+      const file = elements.memoryFile.files?.[0];
+      elements.memoryFile.value = "";
+      if (!file) return;
+      if (file.size > MAX_MEMORY_BYTES) {
+        elements.settingsError.textContent = "记忆文件不能超过 200 KB";
+        return;
+      }
+      try {
+        portableMemory = (await file.text()).trim();
+        if (!portableMemory) throw new Error("记忆文件为空");
+        localStorage.setItem(MEMORY_KEY, portableMemory);
+        updateMemoryStatus();
+        elements.settingsError.textContent = "个人记忆已在此浏览器导入";
+      } catch (error) { elements.settingsError.textContent = error.message; }
+    });
+
+    elements.clearMemory.addEventListener("click", () => {
+      portableMemory = "";
+      localStorage.removeItem(MEMORY_KEY);
+      updateMemoryStatus();
+      elements.settingsError.textContent = "已移除个人记忆";
+    });
+
+    updateMemoryStatus();
 
     elements.form.addEventListener("submit", (event) => {
       event.preventDefault();
