@@ -23,6 +23,8 @@ const elements = {
   menuButton: document.getElementById("menuButton"),
   sidebarScrim: document.getElementById("sidebarScrim"),
   toast: document.getElementById("toast"),
+  apiChatView: document.getElementById("apiChatView"),
+  apiSettingsButton: document.getElementById("apiSettingsButton"),
 };
 
 const state = {
@@ -32,6 +34,7 @@ const state = {
   searchTimer: null,
   searchController: null,
   rawJson: "",
+  apiChatMode: false,
 };
 
 function escapeHtml(value) {
@@ -537,8 +540,32 @@ function setConversationLoading() {
   elements.messages.innerHTML = '<div class="loading-card">正在读取完整消息内容…</div>';
 }
 
+function enterApiChatMode() {
+  state.apiChatMode = true;
+  state.activeConversationUuid = null;
+  state.activeConversation = null;
+  elements.welcome.classList.add("hidden");
+  elements.conversationView.classList.add("hidden");
+  elements.apiChatView.classList.remove("hidden");
+  elements.conversationTitle.textContent = "新聊天";
+  elements.conversationMeta.textContent = "Claude API · 只发送这个新聊天的内容 · 不读取恢复档案";
+  elements.rawConversationButton.classList.add("hidden");
+  elements.rawConversationButton.disabled = true;
+  elements.apiSettingsButton.classList.remove("hidden");
+  document.querySelectorAll(".conversation-item").forEach((item) => item.classList.remove("active"));
+}
+
+function leaveApiChatMode() {
+  if (!state.apiChatMode) return;
+  state.apiChatMode = false;
+  elements.apiChatView.classList.add("hidden");
+  elements.rawConversationButton.classList.remove("hidden");
+  elements.apiSettingsButton.classList.add("hidden");
+}
+
 async function loadConversation(uuid, options = {}) {
   const { focus = "", updateHistory = true } = options;
+  leaveApiChatMode();
   state.activeConversationUuid = uuid;
   document.querySelectorAll(".conversation-item").forEach((item) => {
     item.classList.toggle("active", item.dataset.conversation === uuid);
@@ -705,6 +732,13 @@ elements.copyRawButton.addEventListener("click", () => {
 elements.libraryButton.addEventListener("click", openLibrary);
 elements.menuButton.addEventListener("click", () => document.body.classList.add("sidebar-open"));
 elements.sidebarScrim.addEventListener("click", () => document.body.classList.remove("sidebar-open"));
+
+const apiChat = window.ClaudeApiChat?.init({
+  enterMode: enterApiChatMode,
+  escapeHtml,
+  renderMarkdown,
+  showToast,
+});
 
 document.querySelectorAll("[data-close-dialog]").forEach((button) => {
   button.addEventListener("click", () => document.getElementById(button.dataset.closeDialog).close());

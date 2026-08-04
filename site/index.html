@@ -8,6 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Claude 档案">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.anthropic.com; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'">
     <title>Claude 档案</title>
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="stylesheet" href="./styles.css">
@@ -38,6 +39,10 @@
         </nav>
 
         <div class="sidebar-footer">
+          <button class="new-chat-button" id="newChatButton" type="button">
+            <span aria-hidden="true">＋</span>
+            新聊天
+          </button>
           <button class="library-button" id="libraryButton" type="button">
             <span aria-hidden="true">◫</span>
             项目与 Memory
@@ -55,6 +60,7 @@
             <h1 id="conversationTitle">Claude 本地档案</h1>
             <div id="conversationMeta">请选择左侧会话开始阅读</div>
           </div>
+          <button class="header-action hidden" id="apiSettingsButton" type="button">API 设置</button>
           <button class="header-action hidden" id="lockArchiveButton" type="button">锁定</button>
           <button class="header-action" id="rawConversationButton" type="button" disabled>原始 JSON</button>
         </header>
@@ -70,6 +76,24 @@
           <div class="conversation-view hidden" id="conversationView">
             <div class="messages" id="messages"></div>
           </div>
+
+          <section class="api-chat-view hidden" id="apiChatView" aria-label="Claude API 新聊天">
+            <div class="api-chat-messages" id="apiChatMessages">
+              <div class="api-chat-empty" id="apiChatEmpty">
+                <div class="welcome-orb" aria-hidden="true">C</div>
+                <h2>与 Claude 开始新聊天</h2>
+                <p>只有这个新聊天中的内容会发送给 Anthropic API。恢复档案不会被读取或上传。</p>
+              </div>
+            </div>
+            <form class="api-composer" id="apiChatForm">
+              <textarea id="apiChatInput" rows="1" maxlength="100000" placeholder="发消息给 Claude…" aria-label="发送给 Claude 的消息"></textarea>
+              <div class="api-composer-footer">
+                <span id="apiChatStatus">尚未连接 Claude API</span>
+                <button id="apiStopButton" class="secondary-button hidden" type="button">停止</button>
+                <button id="apiSendButton" class="api-send-button" type="submit">发送</button>
+              </div>
+            </form>
+          </section>
         </section>
       </main>
     </div>
@@ -99,12 +123,40 @@
       <div class="library-content" id="libraryContent">正在读取…</div>
     </dialog>
 
+    <dialog class="modal api-settings-modal" id="apiSettingsDialog">
+      <form id="apiSettingsForm">
+        <div class="modal-header">
+          <div>
+            <div class="modal-eyebrow">仅用于新聊天</div>
+            <h2>连接 Claude API</h2>
+          </div>
+          <button class="icon-button" data-close-dialog="apiSettingsDialog" type="button" aria-label="关闭">×</button>
+        </div>
+        <div class="api-settings-content">
+          <div class="api-security-note">API 密钥不会写入 GitHub，也不会交给档案服务器。浏览器只会把它发送到 <code>api.anthropic.com</code>。</div>
+          <label for="anthropicApiKey">Anthropic API Key</label>
+          <input id="anthropicApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
+          <label class="remember-key"><input id="rememberAnthropicKey" type="checkbox"> 在这台设备上记住 API Key</label>
+          <label for="anthropicModel">Claude 模型</label>
+          <select id="anthropicModel" disabled>
+            <option value="">连接后读取可用模型</option>
+          </select>
+          <p class="api-model-help">模型列表直接从 Anthropic API 获取，不在网页代码中固定某个旧模型。</p>
+          <div class="api-settings-error" id="apiSettingsError" role="alert"></div>
+        </div>
+        <div class="api-settings-actions">
+          <button class="secondary-button" id="forgetAnthropicKey" type="button">忘记 API Key</button>
+          <button class="cloud-unlock-button api-connect-button" type="submit">连接并保存</button>
+        </div>
+      </form>
+    </dialog>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="cloud-gate hidden" id="cloudGate" role="dialog" aria-modal="true" aria-labelledby="cloudGateTitle">
       <form class="cloud-gate-card" id="cloudGateForm">
         <div class="welcome-orb" aria-hidden="true">C</div>
         <h2 id="cloudGateTitle">打开你的私人 Claude 档案</h2>
-        <p>输入恢复密钥。密钥只在这台设备中使用，不会发送给 Firebase 或任何第三方。</p>
+        <p>输入恢复密钥。密钥只在这台设备中解密档案，不会发送给 GitHub Pages 或任何第三方。</p>
         <label for="archiveKeyInput">恢复密钥</label>
         <input id="archiveKeyInput" type="password" autocomplete="current-password" spellcheck="false" required>
         <label class="remember-key"><input id="rememberArchiveKey" type="checkbox" checked> 在这台设备上记住密钥</label>
@@ -114,6 +166,7 @@
     </div>
     <script src="./cloud-config.js"></script>
     <script src="./cloud-data-source.js"></script>
+    <script src="./claude-api-chat.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

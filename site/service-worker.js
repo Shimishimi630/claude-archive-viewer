@@ -1,12 +1,13 @@
 "use strict";
 
-const SHELL_CACHE = "claude-archive-shell-v2";
+const SHELL_CACHE = "claude-archive-shell-v3";
 const SCOPE_URL = self.registration.scope;
 const SHELL_FILES = [
   SCOPE_URL,
   new URL("styles.css", SCOPE_URL).href,
   new URL("cloud-config.js", SCOPE_URL).href,
   new URL("cloud-data-source.js", SCOPE_URL).href,
+  new URL("claude-api-chat.js", SCOPE_URL).href,
   new URL("app.js", SCOPE_URL).href,
   new URL("manifest.webmanifest", SCOPE_URL).href,
 ];

@@ -1,7 +1,7 @@
 {
   "name": "Claude 档案",
   "short_name": "Claude 档案",
-  "description": "在电脑和 iPhone 上阅读完整 Claude 历史记录",
+  "description": "在电脑和 iPhone 上阅读恢复档案，并通过 Anthropic API 开始独立的新聊天",
   "lang": "zh-CN",
   "start_url": "./",
   "scope": "./",
