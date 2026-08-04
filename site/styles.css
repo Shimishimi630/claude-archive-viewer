@@ -525,6 +525,24 @@ mark {
   text-align: right;
 }
 
+.api-message-images {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.api-message-images img {
+  display: block;
+  width: min(196px, 100%);
+  max-height: 260px;
+  border: 1px solid rgba(77, 69, 59, 0.14);
+  border-radius: 10px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.56);
+}
+
 .api-thinking {
   color: var(--muted);
   animation: api-thinking 1.2s ease-in-out infinite;
@@ -577,6 +595,70 @@ mark {
   color: var(--faint);
 }
 
+.api-image-input {
+  display: none;
+}
+
+.api-image-previews {
+  display: flex;
+  gap: 9px;
+  overflow-x: auto;
+  padding: 3px 1px 8px;
+  scrollbar-width: thin;
+}
+
+.api-image-preview {
+  position: relative;
+  flex: 0 0 78px;
+  width: 78px;
+  margin: 0;
+}
+
+.api-image-preview img {
+  display: block;
+  width: 78px;
+  height: 78px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--paper-deep);
+}
+
+.api-image-preview figcaption {
+  overflow: hidden;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.api-image-preview button {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid var(--paper);
+  border-radius: 999px;
+  place-items: center;
+  color: white;
+  background: #5a514a;
+  cursor: pointer;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.api-image-privacy {
+  margin: 0 10px 3px;
+  color: var(--faint);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
 .api-composer-footer {
   display: flex;
   min-width: 0;
@@ -584,6 +666,34 @@ mark {
   gap: 8px;
   padding-top: 5px;
   border-top: 1px solid var(--line-soft);
+}
+
+.api-attach-button {
+  display: grid;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  place-items: center;
+  color: var(--muted);
+  background: white;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.api-attach-button:hover,
+.api-attach-button:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: 0;
+}
+
+.api-attach-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
 }
 
 #apiComposerModel {
@@ -1412,6 +1522,22 @@ details[open] > summary::before {
 
   .api-composer {
     margin: 0 max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
+  }
+
+  .api-attach-button {
+    flex-basis: 42px;
+    width: 42px;
+    height: 42px;
+  }
+
+  .api-image-preview {
+    flex-basis: 84px;
+    width: 84px;
+  }
+
+  .api-image-preview img {
+    width: 84px;
+    height: 84px;
   }
 
   #apiComposerModel {

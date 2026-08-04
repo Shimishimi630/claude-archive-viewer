@@ -7,6 +7,10 @@
   const REMEMBERED_KEY = "claudeApiKeyRemembered";
   const MODEL_KEY = "claudeApiModel";
   const BASE_URL_KEY = "claudeApiBaseUrl";
+  const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+  const MAX_IMAGE_COUNT = 10;
+  const MAX_TOTAL_IMAGE_BYTES = 20 * 1024 * 1024;
+  const DIRECT_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 
   function init(options) {
     const elements = {
@@ -26,6 +30,9 @@
       empty: document.getElementById("apiChatEmpty"),
       form: document.getElementById("apiChatForm"),
       input: document.getElementById("apiChatInput"),
+      imageInput: document.getElementById("apiImageInput"),
+      imagePreviews: document.getElementById("apiImagePreviews"),
+      attachImageButton: document.getElementById("apiAttachImageButton"),
       status: document.getElementById("apiChatStatus"),
       sendButton: document.getElementById("apiSendButton"),
       stopButton: document.getElementById("apiStopButton"),
@@ -36,6 +43,7 @@
     let currentModel = localStorage.getItem(MODEL_KEY) || "";
     let availableModels = [];
     let chatMessages = [];
+    let pendingImages = [];
     let requestController = null;
     let renderFrame = 0;
 
@@ -69,6 +77,134 @@
 
     function apiUrl(path, baseUrl = apiBaseUrl) {
       return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+    }
+
+    function fileToDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("无法读取图片文件"));
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function dataUrlParts(dataUrl) {
+      const match = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/i.exec(dataUrl);
+      if (!match) throw new Error("图片编码失败");
+      return { mediaType: match[1].toLowerCase(), data: match[2] };
+    }
+
+    function convertToJpeg(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const image = new Image();
+        image.onload = () => {
+          try {
+            const longestEdge = Math.max(image.naturalWidth, image.naturalHeight);
+            let scale = longestEdge > 4096 ? 4096 / longestEdge : 1;
+            const canvas = document.createElement("canvas");
+            const compress = () => {
+              canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+              canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+              canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+              canvas.toBlob(
+                (blob) => {
+                  if (!blob) {
+                    URL.revokeObjectURL(url);
+                    reject(new Error("无法转换这张图片，请改用 JPG、PNG、GIF 或 WebP"));
+                    return;
+                  }
+                  if (blob.size <= MAX_IMAGE_BYTES || scale <= 0.16) {
+                    URL.revokeObjectURL(url);
+                    resolve(blob);
+                    return;
+                  }
+                  scale *= 0.72;
+                  compress();
+                },
+                "image/jpeg",
+                0.86,
+              );
+            };
+            compress();
+          } catch {
+            URL.revokeObjectURL(url);
+            reject(new Error("无法转换这张图片，请改用 JPG、PNG、GIF 或 WebP"));
+          }
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error("无法读取这张图片；HEIC/HEIF 请在手机上先转换为 JPG"));
+        };
+        image.src = url;
+      });
+    }
+
+    async function prepareImage(file) {
+      if (!file || !String(file.type || "").startsWith("image/")) {
+        throw new Error("只能添加图片文件");
+      }
+      let imageFile = file;
+      if (!DIRECT_IMAGE_TYPES.has(file.type.toLowerCase()) || file.size > MAX_IMAGE_BYTES) {
+        imageFile = await convertToJpeg(file);
+      }
+      if (imageFile.size > MAX_IMAGE_BYTES) {
+        throw new Error("图片转换后仍超过 5 MiB；请先压缩或裁剪后再上传");
+      }
+      const dataUrl = await fileToDataUrl(imageFile);
+      const { mediaType, data } = dataUrlParts(dataUrl);
+      if (!DIRECT_IMAGE_TYPES.has(mediaType)) throw new Error("图片格式不受 Claude API 支持");
+      return {
+        id: crypto.randomUUID(),
+        name: file.name || "图片",
+        mediaType,
+        data,
+        dataUrl,
+        byteSize: imageFile.size,
+      };
+    }
+
+    function renderPendingImages() {
+      if (!pendingImages.length) {
+        elements.imagePreviews.classList.add("hidden");
+        elements.imagePreviews.innerHTML = "";
+        return;
+      }
+      elements.imagePreviews.classList.remove("hidden");
+      elements.imagePreviews.innerHTML = pendingImages
+        .map(
+          (image) => `<figure class="api-image-preview"><img src="${options.escapeHtml(image.dataUrl)}" alt="${options.escapeHtml(
+            image.name,
+          )}"><figcaption>${options.escapeHtml(image.name)}</figcaption><button type="button" data-remove-image="${options.escapeHtml(
+            image.id,
+          )}" aria-label="移除图片 ${options.escapeHtml(image.name)}">×</button></figure>`,
+        )
+        .join("");
+    }
+
+    function renderMessageImages(images) {
+      if (!Array.isArray(images) || !images.length) return "";
+      return `<div class="api-message-images">${images
+        .map(
+          (image) => `<img src="${options.escapeHtml(image.dataUrl)}" alt="${options.escapeHtml(
+            image.name || "已发送图片",
+          )}" loading="lazy">`,
+        )
+        .join("")}</div>`;
+    }
+
+    function messageHasContent(message) {
+      return Boolean(message?.content?.trim?.() || message?.images?.length);
+    }
+
+    function messageForApi(message) {
+      if (message.role === "assistant") return { role: "assistant", content: message.content };
+      const blocks = (message.images || []).map((image) => ({
+        type: "image",
+        source: { type: "base64", media_type: image.mediaType, data: image.data },
+      }));
+      if (message.content.trim()) blocks.push({ type: "text", text: message.content });
+      return { role: "user", content: blocks };
     }
 
     async function apiError(response) {
@@ -193,9 +329,10 @@
 
     function renderMessage(message, index) {
       if (message.role === "user") {
-        return `<article class="api-message user" data-api-message="${index}"><div class="api-message-bubble"><div class="api-message-label">你</div><div class="markdown">${options.renderMarkdown(
-          message.content,
-        )}</div></div></article>`;
+        const text = message.content ? options.renderMarkdown(message.content) : "";
+        return `<article class="api-message user" data-api-message="${index}"><div class="api-message-bubble"><div class="api-message-label">你</div>${renderMessageImages(
+          message.images,
+        )}${text}</div></article>`;
       }
       const body = message.error
         ? `<div class="api-message-error">${options.escapeHtml(message.error)}</div>`
@@ -282,9 +419,12 @@
       if (requestController) return;
       if (!(await ensureConnection())) return;
       const content = text.trim();
-      if (!content) return;
+      if (!content && !pendingImages.length) return;
 
-      chatMessages.push({ role: "user", content });
+      const images = pendingImages;
+      pendingImages = [];
+      renderPendingImages();
+      chatMessages.push({ role: "user", content, images });
       const requestModel = currentModel;
       const requestBaseUrl = apiBaseUrl;
       const assistant = { role: "assistant", content: "", model: requestModel };
@@ -292,6 +432,7 @@
       elements.input.value = "";
       elements.input.style.height = "auto";
       elements.input.disabled = true;
+      elements.attachImageButton.disabled = true;
       elements.sendButton.disabled = true;
       elements.composerModelSelect.disabled = true;
       elements.stopButton.classList.remove("hidden");
@@ -301,8 +442,8 @@
 
       const payloadMessages = chatMessages
         .slice(0, -1)
-        .filter((message) => !message.error && message.content.trim())
-        .map((message) => ({ role: message.role, content: message.content }));
+        .filter((message) => !message.error && messageHasContent(message))
+        .map(messageForApi);
 
       try {
         const usage = await streamMessage(
@@ -331,6 +472,7 @@
       } finally {
         requestController = null;
         elements.input.disabled = false;
+        elements.attachImageButton.disabled = false;
         elements.sendButton.disabled = false;
         elements.composerModelSelect.disabled = !availableModels.length;
         elements.stopButton.classList.add("hidden");
@@ -415,6 +557,41 @@
     elements.form.addEventListener("submit", (event) => {
       event.preventDefault();
       sendMessage(elements.input.value);
+    });
+
+    elements.attachImageButton.addEventListener("click", () => elements.imageInput.click());
+
+    elements.imageInput.addEventListener("change", async () => {
+      const files = Array.from(elements.imageInput.files || []);
+      elements.imageInput.value = "";
+      if (!files.length) return;
+      const capacity = MAX_IMAGE_COUNT - pendingImages.length;
+      if (capacity <= 0) {
+        options.showToast(`一次最多发送 ${MAX_IMAGE_COUNT} 张图片`);
+        return;
+      }
+      for (const file of files.slice(0, capacity)) {
+        try {
+          const image = await prepareImage(file);
+          const totalBytes = pendingImages.reduce((sum, item) => sum + item.byteSize, 0) + image.byteSize;
+          if (totalBytes > MAX_TOTAL_IMAGE_BYTES) {
+            options.showToast("本次消息图片总大小不能超过 20 MiB");
+            break;
+          }
+          pendingImages.push(image);
+        } catch (error) {
+          options.showToast(error.message);
+        }
+      }
+      if (files.length > capacity) options.showToast(`仅添加前 ${capacity} 张图片`);
+      renderPendingImages();
+    });
+
+    elements.imagePreviews.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-remove-image]");
+      if (!button) return;
+      pendingImages = pendingImages.filter((image) => image.id !== button.dataset.removeImage);
+      renderPendingImages();
     });
 
     elements.input.addEventListener("input", () => {

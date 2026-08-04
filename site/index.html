@@ -11,7 +11,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https:; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'">
     <title>Claude 档案</title>
     <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./styles.css?rev=20260804-images">
   </head>
   <body>
     <div class="app-shell">
@@ -86,8 +86,12 @@
               </div>
             </div>
             <form class="api-composer" id="apiChatForm">
+              <input id="apiImageInput" class="api-image-input" type="file" accept="image/*,.heic,.heif" multiple>
+              <div class="api-image-previews hidden" id="apiImagePreviews" aria-live="polite"></div>
+              <p class="api-image-privacy">图片仅在点击发送后提交到你设置的 API；不会上传到 GitHub，也不会加入恢复档案。</p>
               <textarea id="apiChatInput" rows="1" maxlength="100000" placeholder="发消息给 Claude…" aria-label="发送给 Claude 的消息"></textarea>
               <div class="api-composer-footer">
+                <button id="apiAttachImageButton" class="api-attach-button" type="button" aria-label="添加图片" title="添加图片">▧</button>
                 <select id="apiComposerModel" aria-label="本次提问使用的 Claude 模型" disabled>
                   <option value="">连接 API 后选择模型</option>
                 </select>
@@ -173,7 +177,7 @@
     </div>
     <script src="./cloud-config.js"></script>
     <script src="./cloud-data-source.js"></script>
-    <script src="./claude-api-chat.js"></script>
+    <script src="./claude-api-chat.js?rev=20260804-images"></script>
     <script src="./app.js"></script>
   </body>
 </html>
