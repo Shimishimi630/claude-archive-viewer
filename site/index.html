@@ -88,6 +88,9 @@
             <form class="api-composer" id="apiChatForm">
               <textarea id="apiChatInput" rows="1" maxlength="100000" placeholder="发消息给 Claude…" aria-label="发送给 Claude 的消息"></textarea>
               <div class="api-composer-footer">
+                <select id="apiComposerModel" aria-label="本次提问使用的 Claude 模型" disabled>
+                  <option value="">连接 API 后选择模型</option>
+                </select>
                 <span id="apiChatStatus">尚未连接 Claude API</span>
                 <button id="apiStopButton" class="secondary-button hidden" type="button">停止</button>
                 <button id="apiSendButton" class="api-send-button" type="submit">发送</button>
@@ -141,6 +144,7 @@
           <select id="anthropicModel" disabled>
             <option value="">连接后读取可用模型</option>
           </select>
+          <button class="secondary-button api-refresh-models" id="refreshAnthropicModels" type="button">刷新模型列表</button>
           <p class="api-model-help">模型列表直接从 Anthropic API 获取，不在网页代码中固定某个旧模型。</p>
           <div class="api-settings-error" id="apiSettingsError" role="alert"></div>
         </div>

@@ -586,6 +586,26 @@ mark {
   border-top: 1px solid var(--line-soft);
 }
 
+#apiComposerModel {
+  min-width: 0;
+  max-width: 220px;
+  flex: 0 1 220px;
+  padding: 7px 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  outline: 0;
+  color: var(--muted);
+  background: white;
+  font-size: 10px;
+  text-overflow: ellipsis;
+}
+
+#apiComposerModel:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
 #apiChatStatus {
   min-width: 0;
   flex: 1;
@@ -1146,6 +1166,10 @@ details[open] > summary::before {
   line-height: 1.5;
 }
 
+.api-refresh-models {
+  margin-top: 9px;
+}
+
 .api-settings-error {
   min-height: 20px;
   margin-top: 12px;
@@ -1388,6 +1412,12 @@ details[open] > summary::before {
 
   .api-composer {
     margin: 0 max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
+  }
+
+  #apiComposerModel {
+    max-width: 138px;
+    flex-basis: 138px;
+    font-size: 9px;
   }
 
   .message.human .message-card {

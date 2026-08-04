@@ -1,6 +1,6 @@
 "use strict";
 
-const SHELL_CACHE = "claude-archive-shell-v3";
+const SHELL_CACHE = "claude-archive-shell-v4";
 const SCOPE_URL = self.registration.scope;
 const SHELL_FILES = [
   SCOPE_URL,

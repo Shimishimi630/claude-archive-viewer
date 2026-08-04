@@ -16,6 +16,8 @@
       apiKeyInput: document.getElementById("anthropicApiKey"),
       rememberKey: document.getElementById("rememberAnthropicKey"),
       modelSelect: document.getElementById("anthropicModel"),
+      composerModelSelect: document.getElementById("apiComposerModel"),
+      refreshModels: document.getElementById("refreshAnthropicModels"),
       settingsError: document.getElementById("apiSettingsError"),
       forgetKey: document.getElementById("forgetAnthropicKey"),
       messages: document.getElementById("apiChatMessages"),
@@ -79,15 +81,19 @@
     function renderModelOptions(models, selected) {
       availableModels = models;
       const validSelection = models.some((model) => model.id === selected) ? selected : preferredModel(models);
-      elements.modelSelect.innerHTML = models
+      const optionsHtml = models
         .map(
           (model) => `<option value="${options.escapeHtml(model.id)}">${options.escapeHtml(
             model.display_name || model.id,
           )}</option>`,
         )
         .join("");
+      elements.modelSelect.innerHTML = optionsHtml;
+      elements.composerModelSelect.innerHTML = optionsHtml;
       elements.modelSelect.disabled = false;
+      elements.composerModelSelect.disabled = false;
       elements.modelSelect.value = validSelection;
+      elements.composerModelSelect.value = validSelection;
       currentModel = validSelection;
       localStorage.setItem(MODEL_KEY, currentModel);
       updateStatus();
@@ -110,6 +116,8 @@
       localStorage.removeItem(MODEL_KEY);
       elements.modelSelect.disabled = true;
       elements.modelSelect.innerHTML = '<option value="">连接后读取可用模型</option>';
+      elements.composerModelSelect.disabled = true;
+      elements.composerModelSelect.innerHTML = '<option value="">连接 API 后选择模型</option>';
       elements.apiKeyInput.value = "";
       elements.apiKeyInput.placeholder = "sk-ant-…";
       updateStatus();
@@ -162,7 +170,9 @@
       const body = message.error
         ? `<div class="api-message-error">${options.escapeHtml(message.error)}</div>`
         : `<div class="markdown">${message.content ? options.renderMarkdown(message.content) : '<span class="api-thinking">Claude 正在思考…</span>'}</div>`;
-      return `<article class="api-message assistant" data-api-message="${index}"><div class="assistant-avatar" aria-hidden="true">C</div><div class="api-message-bubble"><div class="api-message-label">Claude · API</div>${body}</div></article>`;
+      const model = availableModels.find((item) => item.id === message.model);
+      const modelLabel = model?.display_name || message.model || "API";
+      return `<article class="api-message assistant" data-api-message="${index}"><div class="assistant-avatar" aria-hidden="true">C</div><div class="api-message-bubble"><div class="api-message-label">Claude · ${options.escapeHtml(modelLabel)}</div>${body}</div></article>`;
     }
 
     function renderChat() {
@@ -202,12 +212,12 @@
       }
     }
 
-    async function streamMessage(messages, onDelta, signal) {
+    async function streamMessage(messages, onDelta, signal, model) {
       const response = await fetch(`${API_ORIGIN}/v1/messages`, {
         method: "POST",
         headers: requestHeaders(apiKey),
         body: JSON.stringify({
-          model: currentModel,
+          model,
           max_tokens: 4096,
           stream: true,
           messages,
@@ -245,12 +255,14 @@
       if (!content) return;
 
       chatMessages.push({ role: "user", content });
-      const assistant = { role: "assistant", content: "" };
+      const requestModel = currentModel;
+      const assistant = { role: "assistant", content: "", model: requestModel };
       chatMessages.push(assistant);
       elements.input.value = "";
       elements.input.style.height = "auto";
       elements.input.disabled = true;
       elements.sendButton.disabled = true;
+      elements.composerModelSelect.disabled = true;
       elements.stopButton.classList.remove("hidden");
       requestController = new AbortController();
       renderChat();
@@ -269,11 +281,12 @@
             scheduleRender();
           },
           requestController.signal,
+          requestModel,
         );
         updateStatus(
           usage.input_tokens || usage.output_tokens
-            ? `${currentModel} · ${usage.input_tokens} 输入 / ${usage.output_tokens} 输出 tokens`
-            : currentModel,
+            ? `${requestModel} · ${usage.input_tokens} 输入 / ${usage.output_tokens} 输出 tokens`
+            : requestModel,
         );
       } catch (error) {
         if (error.name === "AbortError") {
@@ -287,6 +300,7 @@
         requestController = null;
         elements.input.disabled = false;
         elements.sendButton.disabled = false;
+        elements.composerModelSelect.disabled = !availableModels.length;
         elements.stopButton.classList.add("hidden");
         renderChat();
         elements.input.focus();
@@ -328,8 +342,33 @@
 
     elements.modelSelect.addEventListener("change", () => {
       currentModel = elements.modelSelect.value;
+      elements.composerModelSelect.value = currentModel;
       if (currentModel) localStorage.setItem(MODEL_KEY, currentModel);
       updateStatus();
+    });
+
+    elements.composerModelSelect.addEventListener("change", () => {
+      currentModel = elements.composerModelSelect.value;
+      elements.modelSelect.value = currentModel;
+      if (currentModel) localStorage.setItem(MODEL_KEY, currentModel);
+      updateStatus();
+    });
+
+    elements.refreshModels.addEventListener("click", async () => {
+      if (!apiKey) {
+        elements.settingsError.textContent = "请先输入并连接 Anthropic API Key";
+        return;
+      }
+      elements.settingsError.textContent = "正在刷新 Claude 模型列表…";
+      elements.refreshModels.disabled = true;
+      try {
+        renderModelOptions(await fetchModels(apiKey), currentModel);
+        elements.settingsError.textContent = "模型列表已更新";
+      } catch (error) {
+        elements.settingsError.textContent = error.message;
+      } finally {
+        elements.refreshModels.disabled = false;
+      }
     });
 
     elements.forgetKey.addEventListener("click", () => {
