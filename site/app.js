@@ -20,6 +20,9 @@ const elements = {
   libraryButton: document.getElementById("libraryButton"),
   libraryDialog: document.getElementById("libraryDialog"),
   libraryContent: document.getElementById("libraryContent"),
+  artifactsButton: document.getElementById("artifactsButton"),
+  artifactsDialog: document.getElementById("artifactsDialog"),
+  artifactsContent: document.getElementById("artifactsContent"),
   menuButton: document.getElementById("menuButton"),
   sidebarScrim: document.getElementById("sidebarScrim"),
   toast: document.getElementById("toast"),
@@ -731,6 +734,48 @@ async function openLibrary() {
   }
 }
 
+function renderArtifacts(data) {
+  const items = Array.isArray(data?.items) ? data.items : [];
+  if (!items.length) return '<div class="library-card"><p>这份档案尚未包含恢复成果。</p></div>';
+  const groups = new Map();
+  for (const item of items) {
+    const category = item.category || "其他成果";
+    if (!groups.has(category)) groups.set(category, []);
+    groups.get(category).push(item);
+  }
+  return [...groups.entries()].map(([category, entries]) => `<section class="library-section"><h3>${escapeHtml(category)}（${entries.length}）</h3>${entries.map((item) => `<div class="library-card"><button class="artifact-open-button" type="button" data-artifact="${escapeHtml(item.id)}"><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.format || "文件")} · ${formatBytes(item.bytes)} · 点击打开或下载</span></button></div>`).join("")}</section>`).join("");
+}
+
+async function openArtifacts() {
+  elements.artifactsContent.textContent = "正在读取恢复成果清单…";
+  elements.artifactsDialog.showModal();
+  try {
+    elements.artifactsContent.innerHTML = renderArtifacts(await fetchJson("/api/artifacts"));
+  } catch (error) {
+    elements.artifactsContent.innerHTML = `<div class="error-card">读取失败：${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function openArtifact(id) {
+  try {
+    const artifact = await fetchJson(`/api/artifacts/${encodeURIComponent(id)}`);
+    const binary = atob(artifact.base64 || "");
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], { type: artifact.mime || "application/octet-stream" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = artifact.name || "recovered-artifact";
+    if ((artifact.mime || "").startsWith("text/") || artifact.mime === "application/pdf") {
+      window.open(url, "_blank", "noopener");
+    } else {
+      document.body.append(anchor); anchor.click(); anchor.remove();
+    }
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    showToast(`打开成果失败：${error.message}`);
+  }
+}
+
 elements.searchInput.addEventListener("input", () => {
   window.clearTimeout(state.searchTimer);
   state.searchTimer = window.setTimeout(() => loadConversations(elements.searchInput.value.trim()), 260);
@@ -788,6 +833,11 @@ elements.copyRawButton.addEventListener("click", () => {
 });
 
 elements.libraryButton.addEventListener("click", openLibrary);
+elements.artifactsButton.addEventListener("click", openArtifacts);
+elements.artifactsContent.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-artifact]");
+  if (button) openArtifact(button.dataset.artifact);
+});
 elements.archiveTab.addEventListener("click", () => { elements.archiveTab.classList.add("active"); elements.apiChatsTab.classList.remove("active"); elements.conversationList.classList.remove("hidden"); elements.apiChatList.classList.add("hidden"); elements.archiveSearchBox.classList.remove("hidden"); elements.archiveListHeader.classList.remove("hidden"); elements.cloudSyncPanel.classList.add("hidden"); });
 elements.apiChatsTab.addEventListener("click", () => apiChat?.open());
 elements.leaveApiChatButton.addEventListener("click", () => {

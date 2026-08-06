@@ -145,6 +145,19 @@
     if (parsed.pathname === "/api/library") {
       return readEncryptedJson(manifest.library_file, options);
     }
+    if (parsed.pathname === "/api/artifacts") {
+      if (!manifest.artifact_library_file) return { items: [] };
+      return readEncryptedJson(manifest.artifact_library_file, options);
+    }
+    const artifactMatch = parsed.pathname.match(/^\/api\/artifacts\/([^/]+)$/);
+    if (artifactMatch) {
+      if (!manifest.artifact_library_file) throw new Error("这份档案尚未包含恢复成果");
+      const index = await readEncryptedJson(manifest.artifact_library_file, options);
+      const id = decodeURIComponent(artifactMatch[1]);
+      const item = (index.items || []).find((entry) => entry.id === id);
+      if (!item?.file) throw new Error("找不到该恢复成果");
+      return readEncryptedJson(item.file, options);
+    }
     const conversationMatch = parsed.pathname.match(/^\/api\/conversations\/([^/]+)$/);
     if (conversationMatch) {
       const uuid = decodeURIComponent(conversationMatch[1]);

@@ -53,6 +53,10 @@
             <span aria-hidden="true">◫</span>
             项目与 Memory
           </button>
+          <button class="library-button" id="artifactsButton" type="button">
+            <span aria-hidden="true">▣</span>
+            恢复成果
+          </button>
           <div class="archive-stats" id="archiveStats">正在核对档案…</div>
           <div class="app-version" title="页面构建版本">版本 2026.08.04.07</div>
         </div>
@@ -136,6 +140,17 @@
         <button class="icon-button" data-close-dialog="libraryDialog" type="button" aria-label="关闭">×</button>
       </div>
       <div class="library-content" id="libraryContent">正在读取…</div>
+    </dialog>
+
+    <dialog class="modal library-modal" id="artifactsDialog">
+      <div class="modal-header">
+        <div>
+          <div class="modal-eyebrow">已加密恢复成果</div>
+          <h2>恢复成果库</h2>
+        </div>
+        <button class="icon-button" data-close-dialog="artifactsDialog" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="library-content" id="artifactsContent">正在读取…</div>
     </dialog>
 
     <dialog class="modal api-settings-modal" id="apiSettingsDialog">
